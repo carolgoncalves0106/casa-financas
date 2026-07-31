@@ -1,0 +1,95 @@
+"use client";
+
+import { useState } from "react";
+import { Info, Check } from "lucide-react";
+import FormSection from "@/components/ui/FormSection";
+import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
+import DatePicker from "@/components/ui/DatePicker";
+import PrimaryButton from "@/components/ui/PrimaryButton";
+import SecondaryButton from "@/components/ui/SecondaryButton";
+import { CartaoCredito } from "@/lib/types";
+import { contas } from "@/lib/mock";
+import { formatBRL } from "@/lib/utils";
+
+export default function PayInvoiceForm({ cartao }: { cartao: CartaoCredito }) {
+  const [valorPago, setValorPago] = useState(String(cartao.faturaAtual));
+  const [salvo, setSalvo] = useState(false);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSalvo(true);
+    setTimeout(() => setSalvo(false), 3500);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 sm:gap-5">
+      <div className="flex items-start gap-2 rounded-2xl bg-butter-soft/70 border border-butter/20 px-4 py-3">
+        <Info size={16} className="text-clay shrink-0 mt-0.5" />
+        <p className="text-xs text-ink-soft leading-relaxed">
+          {cartao.afetaContaAoPagar ? (
+            <>
+              Marcar como paga vai gerar, no futuro, uma <strong>movimentação financeira</strong> que
+              afeta o saldo da conta escolhida — mas não entra nos gráficos de despesas.
+            </>
+          ) : (
+            <>
+              O <strong>{cartao.nome}</strong> é só para controle: marcar como paga aqui não escolhe
+              conta nem afeta o saldo de nenhuma conta.
+            </>
+          )}
+        </p>
+      </div>
+
+      <FormSection title={`Pagar fatura — ${cartao.nome}`}>
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-ink-soft">Valor da fatura</label>
+              <div className="rounded-2xl border border-black/5 bg-cream-soft/40 px-4 py-3 text-sm text-ink-soft">
+                {formatBRL(cartao.faturaAtual)}
+              </div>
+            </div>
+            <Input
+              label="Valor pago"
+              id="valor-pago"
+              inputMode="decimal"
+              value={valorPago}
+              onChange={(e) => setValorPago(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <DatePicker label="Data do pagamento" id="data-pagamento" />
+            {cartao.afetaContaAoPagar ? (
+              <Select
+                label="Conta usada para pagamento"
+                id="conta-pagamento"
+                options={contas.map((c) => ({ value: c.id, label: `${c.emoji} ${c.nome}` }))}
+              />
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-ink-soft">Conta usada para pagamento</label>
+                <div className="rounded-2xl border border-dashed border-black/10 bg-cream-soft/30 px-4 py-3 text-sm text-ink-faint">
+                  Não aplicável — só controle
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Input label="Observação (opcional)" id="obs-pagamento" placeholder="Ex: Pago no débito automático" />
+        </div>
+      </FormSection>
+
+      <div className="flex flex-col-reverse sm:flex-row items-center gap-3 sm:justify-end">
+        {salvo && (
+          <span className="flex items-center gap-1.5 text-sm font-medium text-sage animate-fade-in sm:mr-auto">
+            <Check size={16} /> Fatura marcada como paga (modo de demonstração)
+          </span>
+        )}
+        <SecondaryButton href={`/cartoes/${cartao.id}`}>Cancelar</SecondaryButton>
+        <PrimaryButton type="submit">Marcar como paga</PrimaryButton>
+      </div>
+    </form>
+  );
+}

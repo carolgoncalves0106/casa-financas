@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #FBF6EE;
+  color: #3B332C;
+}
+
+/* Foco visível para acessibilidade */
+:focus-visible {
+  outline: 2px solid #C97F5D;
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Entrada suave para campos/seções que aparecem dinamicamente
+   (ex: parcelamento, campos condicionais do formulário) */
+@keyframes field-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-field-in {
+  animation: field-in 220ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Fade simples para trocas de conteúdo (ex: mudar o tipo de lançamento) */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 180ms ease-out;
+}
+
+/* Skeleton de carregamento — pronto para quando os dados vierem do backend */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-skeleton {
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+/* Scrollbar mais discreta */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #E7DDCB;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #DACBAE;
+}
