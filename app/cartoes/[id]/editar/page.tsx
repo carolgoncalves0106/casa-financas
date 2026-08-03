@@ -2,10 +2,10 @@ import { notFound } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
 import PageHeader from "@/components/ui/PageHeader";
 import CardForm from "@/components/forms/CardForm";
-import { cartoes } from "@/lib/mock";
+import { getCartao } from "@/lib/data/cartoes";
 
-export default function EditarCartaoPage({ params }: { params: { id: string } }) {
-  const cartao = cartoes.find((c) => c.id === params.id);
+export default async function EditarCartaoPage({ params }: { params: { id: string } }) {
+  const cartao = await getCartao(params.id);
   if (!cartao) notFound();
 
   return (

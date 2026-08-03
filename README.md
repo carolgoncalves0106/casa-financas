@@ -1,16 +1,19 @@
 # Nossa Casa — Finanças da Família 🏡
 
-Front-end de um sistema de finanças domésticas, com identidade visual aconchegante
-e dados **fictícios**. Esta é a primeira etapa do projeto: só layout e navegação,
-sem Supabase, sem autenticação e sem lógica financeira real.
+Sistema de finanças domésticas, com identidade visual aconchegante. As telas
+ainda usam dados fictícios (mock) — a integração com o banco (Supabase) está
+sendo feita aos poucos, tela por tela. **Autenticação já está ligada:** só
+quem tem login cadastrado consegue acessar o app.
 
 ## Stack
 
 - Next.js 14 (App Router)
 - TypeScript
 - Tailwind CSS
-- Recharts (gráfico de rosquinha)
+- Recharts (gráficos)
 - lucide-react (ícones)
+- Supabase (`@supabase/supabase-js` + `@supabase/ssr`) — autenticação ligada;
+  dados ainda mockados, sendo migrados tela por tela
 
 ## Rodando localmente
 
@@ -21,22 +24,44 @@ cd casa-financas
 # 2. instalar as dependências
 npm install
 
-# 3. rodar em modo desenvolvimento
+# 3. configurar as variáveis de ambiente
+cp .env.local.example .env.local
+# edite .env.local com a URL e a anon key do projeto Supabase (Project Settings → API)
+
+# 4. rodar em modo desenvolvimento
 npm run dev
 ```
 
-Depois é só abrir **http://localhost:3000** no navegador (a rota inicial
-redireciona para `/painel`).
+Depois é só abrir **http://localhost:3000**. Como a autenticação já está
+ativa, a primeira tela será **/login** — use um e-mail/senha já cadastrado em
+**Authentication → Users** no Supabase e vinculado em `casa_usuarios`
+(ver `schema-casa-financas.sql`).
 
 ## Publicando na Vercel
 
 1. Suba esta pasta para um repositório novo no GitHub.
 2. Em [vercel.com](https://vercel.com), clique em **Add New → Project** e importe o repositório.
-3. Mantenha as configurações padrão (Next.js é detectado automaticamente) e clique em **Deploy**.
-
-Nenhuma variável de ambiente é necessária nesta etapa (sem Supabase ainda).
+3. Em **Environment Variables**, adicione `NEXT_PUBLIC_SUPABASE_URL` e
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY` com os mesmos valores do `.env.local`.
+4. Clique em **Deploy**.
 
 ## Estrutura do projeto
+
+**Novo nesta etapa (autenticação):**
+
+```
+middleware.ts                    → protege as rotas e renova a sessão a cada requisição
+.env.local.example               → variáveis de ambiente necessárias
+lib/supabase/client.ts           → cliente Supabase para Client Components
+lib/supabase/server.ts           → cliente Supabase para Server Components
+lib/supabase/actions.ts          → server action de logout (signOut)
+app/login/page.tsx               → tela de login
+components/auth/LoginForm.tsx    → formulário de login
+components/auth/LogoutButton.tsx → botão de sair (hoje só na sidebar do desktop)
+```
+
+O restante do projeto (abaixo) continua com dados mockados — a migração tela
+por tela vem nas próximas etapas.
 
 ```
 casa-financas/

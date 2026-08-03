@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { navItems } from "@/lib/nav-items";
 import { cn } from "@/lib/utils";
 import FloatingActionButton from "@/components/ui/FloatingActionButton";
+import LogoutButton from "@/components/auth/LogoutButton";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -13,12 +14,13 @@ export default function Sidebar() {
     <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:shrink-0 lg:h-screen lg:sticky lg:top-0 border-r border-black/5 bg-cream-soft px-5 py-6">
       <div className="flex items-center gap-2 px-2 mb-8">
         <span className="text-2xl leading-none">🏡</span>
-        <div>
+        <div className="flex-1 min-w-0">
           <p className="font-display text-lg font-semibold text-ink leading-tight">
             Nossa Casa
           </p>
           <p className="text-xs text-ink-faint leading-tight">finanças da família</p>
         </div>
+        <LogoutButton />
       </div>
 
       <nav className="flex-1 flex flex-col gap-1">

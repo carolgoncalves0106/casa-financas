@@ -1,8 +1,7 @@
 "use client";
 
 import { Pencil, Archive, ChevronDown } from "lucide-react";
-import { Categoria } from "@/lib/mock";
-import { CorConta, coresContaDisponiveis } from "@/lib/types";
+import { CategoriaCompleta, CorConta, coresContaDisponiveis } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import IconPicker from "@/components/ui/IconPicker";
 import ColorPicker from "@/components/ui/ColorPicker";
@@ -17,7 +16,7 @@ const corBg: Record<CorConta, string> = {
 const emojisComuns = ["🏠", "🛒", "🍔", "🚗", "🩺", "👧", "🐱", "🛍️", "🎉", "💸", "💰", "💵", "🎸", "✨", "🔄", "📥", "🏋️", "📺", "🌱", "🎯"];
 
 interface CategoryRowProps {
-  categoria: Categoria;
+  categoria: CategoriaCompleta;
   arquivada: boolean;
   aberta: boolean;
   onToggleAbrir: () => void;

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ContaFixa, StatusContaFixa } from "@/lib/types";
+import { pausarContaFixa, retomarContaFixa, pularContaFixa, arquivarContaFixa } from "@/lib/data/contas-fixas-actions";
 import FixedBillCard from "./FixedBillCard";
 
 interface FixedBillsBoardProps {
@@ -16,31 +18,31 @@ const grupos: { status: StatusContaFixa[]; titulo: string; emoji: string }[] = [
 ];
 
 export default function FixedBillsBoard({ itens }: FixedBillsBoardProps) {
-  // Estado local só para a demonstração — nada é persistido ainda.
-  const [overrides, setOverrides] = useState<Record<string, StatusContaFixa>>({});
-  const [arquivadas, setArquivadas] = useState<Set<string>>(new Set());
+  const router = useRouter();
+  const [processando, setProcessando] = useState<string | null>(null);
 
-  function statusAtual(conta: ContaFixa) {
-    return overrides[conta.id] ?? conta.status;
+  async function executar(id: string, acao: () => Promise<{ error: string | null }>) {
+    setProcessando(id);
+    const resultado = await acao();
+    setProcessando(null);
+
+    if (resultado.error) {
+      alert(`Não foi possível concluir: ${resultado.error}`);
+      return;
+    }
+    router.refresh();
   }
 
-  function setStatus(id: string, status: StatusContaFixa) {
-    setOverrides((prev) => ({ ...prev, [id]: status }));
+  async function confirmarArquivar(conta: ContaFixa) {
+    const ok = window.confirm(`Arquivar "${conta.nome}"? Ela para de gerar lançamentos previstos.`);
+    if (!ok) return;
+    executar(conta.id, () => arquivarContaFixa(conta.id));
   }
-
-  function confirmarArquivar(conta: ContaFixa) {
-    const ok = window.confirm(
-      `Arquivar "${conta.nome}"? Ela para de gerar lançamentos previstos. (demonstração — nada é salvo ainda)`
-    );
-    if (ok) setArquivadas((prev) => new Set(prev).add(conta.id));
-  }
-
-  const visiveis = itens.filter((c) => !arquivadas.has(c.id));
 
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
       {grupos.map((grupo) => {
-        const contasDoGrupo = visiveis.filter((c) => grupo.status.includes(statusAtual(c)));
+        const contasDoGrupo = itens.filter((c) => grupo.status.includes(c.status));
         if (contasDoGrupo.length === 0) return null;
 
         return (
@@ -53,10 +55,11 @@ export default function FixedBillsBoard({ itens }: FixedBillsBoardProps) {
               {contasDoGrupo.map((conta) => (
                 <FixedBillCard
                   key={conta.id}
-                  conta={{ ...conta, status: statusAtual(conta) }}
-                  onPausar={() => setStatus(conta.id, "pausada")}
-                  onRetomar={() => setStatus(conta.id, conta.status === "vencida" ? "vencida" : "proxima")}
-                  onPular={() => setStatus(conta.id, "pulada")}
+                  conta={conta}
+                  processando={processando === conta.id}
+                  onPausar={() => executar(conta.id, () => pausarContaFixa(conta.id))}
+                  onRetomar={() => executar(conta.id, () => retomarContaFixa(conta.id))}
+                  onPular={() => executar(conta.id, () => pularContaFixa(conta.id))}
                   onArquivar={() => confirmarArquivar(conta)}
                 />
               ))}
@@ -65,7 +68,7 @@ export default function FixedBillsBoard({ itens }: FixedBillsBoardProps) {
         );
       })}
 
-      {visiveis.length === 0 && (
+      {itens.length === 0 && (
         <p className="text-sm text-ink-faint text-center py-10">Nenhuma conta fixa cadastrada ainda.</p>
       )}
     </div>

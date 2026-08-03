@@ -5,7 +5,8 @@ import AppShell from "@/components/layout/AppShell";
 import PageHeader from "@/components/ui/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
 import TransactionCard from "@/components/ui/TransactionCard";
-import { cartoes, todosLancamentos } from "@/lib/mock";
+import { getCartao } from "@/lib/data/cartoes";
+import { getLancamentosPorCartao } from "@/lib/data/lancamentos";
 import { formatBRL, cn } from "@/lib/utils";
 
 const statusFaturaStyles = {
@@ -14,17 +15,16 @@ const statusFaturaStyles = {
   paga: { label: "Paga", bg: "bg-status-paidSoft", text: "text-status-paid" },
 };
 
-export default function CartaoDetalhePage({ params }: { params: { id: string } }) {
-  const cartao = cartoes.find((c) => c.id === params.id);
+export default async function CartaoDetalhePage({ params }: { params: { id: string } }) {
+  const cartao = await getCartao(params.id);
   if (!cartao) notFound();
 
-  const comprasFatura = todosLancamentos.filter((l) => l.origem === cartao.nome && !l.previsto);
+  const lancamentosCartao = await getLancamentosPorCartao(cartao.id, cartao.nome);
+  const comprasFatura = lancamentosCartao.filter((l) => !l.previsto);
   const parceladas = comprasFatura.filter((l) => l.parcela);
-  const proximasParcelas = todosLancamentos.filter(
-    (l) => l.origem === cartao.nome && l.parcela && l.previsto
-  );
-  const totalProximaFatura = todosLancamentos
-    .filter((l) => l.origem === cartao.nome && l.previsto)
+  const proximasParcelas = lancamentosCartao.filter((l) => l.parcela && l.previsto);
+  const totalProximaFatura = lancamentosCartao
+    .filter((l) => l.previsto)
     .reduce((soma, l) => soma + l.valor, 0);
 
   return (

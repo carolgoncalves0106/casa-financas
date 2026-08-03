@@ -1,11 +1,14 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Wallet } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import PageHeader from "@/components/ui/PageHeader";
 import AccountCard from "@/components/contas/AccountCard";
-import { contas } from "@/lib/mock";
+import EmptyState from "@/components/ui/EmptyState";
+import { getContas } from "@/lib/data/contas";
 
-export default function ContasPage() {
+export default async function ContasPage() {
+  const contas = await getContas();
+
   return (
     <AppShell>
       <PageHeader
@@ -22,14 +25,22 @@ export default function ContasPage() {
         }
       />
 
-      <section
-        aria-label="Contas cadastradas"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"
-      >
-        {contas.map((conta) => (
-          <AccountCard key={conta.id} conta={conta} />
-        ))}
-      </section>
+      {contas.length === 0 ? (
+        <EmptyState
+          icon={Wallet}
+          titulo="Nenhuma conta cadastrada ainda"
+          descricao='Clique em "Adicionar conta" para cadastrar a primeira conta, carteira ou reserva da casa.'
+        />
+      ) : (
+        <section
+          aria-label="Contas cadastradas"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"
+        >
+          {contas.map((conta) => (
+            <AccountCard key={conta.id} conta={conta} />
+          ))}
+        </section>
+      )}
     </AppShell>
   );
 }

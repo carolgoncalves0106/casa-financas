@@ -2,10 +2,10 @@ import { notFound } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
 import PageHeader from "@/components/ui/PageHeader";
 import AdjustBalanceForm from "@/components/forms/AdjustBalanceForm";
-import { contas } from "@/lib/mock";
+import { getConta } from "@/lib/data/contas";
 
-export default function AjustarSaldoPage({ params }: { params: { id: string } }) {
-  const conta = contas.find((c) => c.id === params.id);
+export default async function AjustarSaldoPage({ params }: { params: { id: string } }) {
+  const conta = await getConta(params.id);
   if (!conta) notFound();
 
   return (

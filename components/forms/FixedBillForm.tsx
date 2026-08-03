@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { useRouter } from "next/navigation";
 import FormSection from "@/components/ui/FormSection";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
@@ -9,25 +9,63 @@ import DatePicker from "@/components/ui/DatePicker";
 import Toggle from "@/components/ui/Toggle";
 import PrimaryButton from "@/components/ui/PrimaryButton";
 import SecondaryButton from "@/components/ui/SecondaryButton";
-import { ContaFixa, frequenciasContaFixa } from "@/lib/types";
-import { categoriasDespesas, origensDisponiveis } from "@/lib/mock";
+import { ContaFixa, CategoriaCompleta, frequenciasContaFixa } from "@/lib/types";
+import { createContaFixa, updateContaFixa } from "@/lib/data/contas-fixas-actions";
+
+interface OrigemOpcao {
+  id: string;
+  nome: string;
+  emoji: string;
+}
 
 interface FixedBillFormProps {
   modo: "criar" | "editar";
   contaExistente?: ContaFixa;
+  categorias: CategoriaCompleta[];
+  origens: OrigemOpcao[];
 }
 
-export default function FixedBillForm({ modo, contaExistente }: FixedBillFormProps) {
+export default function FixedBillForm({ modo, contaExistente, categorias, origens }: FixedBillFormProps) {
+  const router = useRouter();
   const [valorFixo, setValorFixo] = useState<"fixo" | "estimado">(
     contaExistente ? (contaExistente.valorFixo ? "fixo" : "estimado") : "fixo"
   );
   const [lembrete, setLembrete] = useState<"sim" | "nao">(contaExistente?.lembrete ? "sim" : "nao");
-  const [salvo, setSalvo] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSalvo(true);
-    setTimeout(() => setSalvo(false), 3500);
+    setErro(null);
+    setSalvando(true);
+
+    const dados = new FormData(e.currentTarget);
+    const input = {
+      nome: String(dados.get("nome") ?? "").trim(),
+      categoriaNome: String(dados.get("categoria") ?? ""),
+      descricao: String(dados.get("descricao") ?? "").trim(),
+      valor: String(dados.get("valor") ?? "0"),
+      valorFixo: valorFixo === "fixo",
+      origemNome: String(dados.get("origem") ?? ""),
+      diaVencimento: String(dados.get("dia-vencimento") ?? "1"),
+      frequencia: String(dados.get("frequencia") ?? "mensal") as ContaFixa["frequencia"],
+      lembrete: lembrete === "sim",
+      dataInicio: String(dados.get("data-inicio") ?? ""),
+      dataFim: String(dados.get("data-fim") ?? ""),
+      observacao: String(dados.get("observacao") ?? "").trim(),
+    };
+
+    const resultado =
+      modo === "criar" ? await createContaFixa(input) : await updateContaFixa(contaExistente!.id, input);
+
+    if (resultado.error) {
+      setErro(resultado.error);
+      setSalvando(false);
+      return;
+    }
+
+    router.push("/contas-fixas");
+    router.refresh();
   }
 
   return (
@@ -35,22 +73,24 @@ export default function FixedBillForm({ modo, contaExistente }: FixedBillFormPro
       <FormSection title="Dados da conta fixa">
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Nome" id="nome" placeholder="Ex: Aluguel" defaultValue={contaExistente?.nome} />
+            <Input label="Nome" id="nome" name="nome" placeholder="Ex: Aluguel" defaultValue={contaExistente?.nome} required />
             <Select
               label="Categoria"
               id="categoria"
+              name="categoria"
               placeholder="Selecione uma categoria"
               defaultValue={contaExistente?.categoria ?? ""}
-              options={categoriasDespesas.map((c) => ({ value: c.nome, label: `${c.emoji} ${c.nome}` }))}
+              options={categorias.map((c) => ({ value: c.nome, label: `${c.emoji} ${c.nome}` }))}
             />
           </div>
 
-          <Input label="Descrição (opcional)" id="descricao" placeholder="Detalhes adicionais" defaultValue={contaExistente?.descricao} />
+          <Input label="Descrição (opcional)" id="descricao" name="descricao" placeholder="Detalhes adicionais" defaultValue={contaExistente?.descricao} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Valor"
               id="valor"
+              name="valor"
               inputMode="decimal"
               placeholder="R$ 0,00"
               defaultValue={contaExistente ? String(contaExistente.valorPrevisto) : undefined}
@@ -70,12 +110,14 @@ export default function FixedBillForm({ modo, contaExistente }: FixedBillFormPro
             <Select
               label="Conta ou cartão"
               id="origem"
+              name="origem"
               defaultValue={contaExistente?.origem}
-              options={origensDisponiveis.map((o) => ({ value: o.nome, label: `${o.emoji} ${o.nome}` }))}
+              options={origens.map((o) => ({ value: o.nome, label: `${o.emoji} ${o.nome}` }))}
             />
             <Input
               label="Dia de vencimento"
               id="dia-vencimento"
+              name="dia-vencimento"
               type="number"
               min={1}
               max={31}
@@ -88,6 +130,7 @@ export default function FixedBillForm({ modo, contaExistente }: FixedBillFormPro
             <Select
               label="Frequência"
               id="frequencia"
+              name="frequencia"
               defaultValue={contaExistente?.frequencia ?? "mensal"}
               options={frequenciasContaFixa.map((f) => ({ value: f.value, label: f.label }))}
             />
@@ -103,22 +146,25 @@ export default function FixedBillForm({ modo, contaExistente }: FixedBillFormPro
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <DatePicker label="Data de início" id="data-inicio" />
-            <DatePicker label="Data de encerramento (opcional)" id="data-fim" />
+            <DatePicker label="Data de início" id="data-inicio" name="data-inicio" defaultValue={contaExistente?.dataInicio} />
+            <DatePicker label="Data de encerramento (opcional)" id="data-fim" name="data-fim" defaultValue={contaExistente?.dataFim} />
           </div>
 
-          <Input label="Observação (opcional)" id="observacao" placeholder="Ex: Reajusta todo mês de janeiro" defaultValue={contaExistente?.observacao} />
+          <Input label="Observação (opcional)" id="observacao" name="observacao" placeholder="Ex: Reajusta todo mês de janeiro" defaultValue={contaExistente?.observacao} />
         </div>
       </FormSection>
 
+      {erro && (
+        <p className="text-sm text-bloom bg-bloom-soft/50 rounded-2xl px-4 py-2.5 animate-fade-in">
+          {erro}
+        </p>
+      )}
+
       <div className="flex flex-col-reverse sm:flex-row items-center gap-3 sm:justify-end">
-        {salvo && (
-          <span className="flex items-center gap-1.5 text-sm font-medium text-sage animate-fade-in sm:mr-auto">
-            <Check size={16} /> {modo === "criar" ? "Conta fixa criada" : "Alterações salvas"} (modo de demonstração)
-          </span>
-        )}
         <SecondaryButton href="/contas-fixas">Cancelar</SecondaryButton>
-        <PrimaryButton type="submit">{modo === "criar" ? "Adicionar conta fixa" : "Salvar alterações"}</PrimaryButton>
+        <PrimaryButton type="submit" disabled={salvando}>
+          {salvando ? "Salvando..." : modo === "criar" ? "Adicionar conta fixa" : "Salvar alterações"}
+        </PrimaryButton>
       </div>
     </form>
   );

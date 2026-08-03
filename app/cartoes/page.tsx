@@ -1,11 +1,14 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, CreditCard } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import PageHeader from "@/components/ui/PageHeader";
 import CardTile from "@/components/cartoes/CardTile";
-import { cartoes } from "@/lib/mock";
+import EmptyState from "@/components/ui/EmptyState";
+import { getCartoes } from "@/lib/data/cartoes";
 
-export default function CartoesPage() {
+export default async function CartoesPage() {
+  const cartoes = await getCartoes();
+
   return (
     <AppShell>
       <PageHeader
@@ -22,14 +25,22 @@ export default function CartoesPage() {
         }
       />
 
-      <section
-        aria-label="Cartões cadastrados"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"
-      >
-        {cartoes.map((cartao) => (
-          <CardTile key={cartao.id} cartao={cartao} />
-        ))}
-      </section>
+      {cartoes.length === 0 ? (
+        <EmptyState
+          icon={CreditCard}
+          titulo="Nenhum cartão cadastrado ainda"
+          descricao='Clique em "Adicionar cartão" para cadastrar o primeiro cartão de crédito da casa.'
+        />
+      ) : (
+        <section
+          aria-label="Cartões cadastrados"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"
+        >
+          {cartoes.map((cartao) => (
+            <CardTile key={cartao.id} cartao={cartao} />
+          ))}
+        </section>
+      )}
     </AppShell>
   );
 }

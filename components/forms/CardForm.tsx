@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { useRouter } from "next/navigation";
 import FormSection from "@/components/ui/FormSection";
 import Input from "@/components/ui/Input";
 import IconPicker from "@/components/ui/IconPicker";
@@ -9,6 +9,7 @@ import ColorPicker from "@/components/ui/ColorPicker";
 import PrimaryButton from "@/components/ui/PrimaryButton";
 import SecondaryButton from "@/components/ui/SecondaryButton";
 import { CartaoCredito, CorConta, iconesContaDisponiveis, coresContaDisponiveis } from "@/lib/types";
+import { createCartao, updateCartao } from "@/lib/data/cartoes-actions";
 
 interface CardFormProps {
   modo: "criar" | "editar";
@@ -16,14 +17,40 @@ interface CardFormProps {
 }
 
 export default function CardForm({ modo, cartaoExistente }: CardFormProps) {
+  const router = useRouter();
   const [emoji, setEmoji] = useState(cartaoExistente?.emoji ?? "💳");
   const [cor, setCor] = useState<CorConta>(cartaoExistente?.cor ?? coresContaDisponiveis[0].value);
-  const [salvo, setSalvo] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSalvo(true);
-    setTimeout(() => setSalvo(false), 3500);
+    setErro(null);
+    setSalvando(true);
+
+    const dados = new FormData(e.currentTarget);
+    const input = {
+      nome: String(dados.get("nome") ?? "").trim(),
+      titular: String(dados.get("titular") ?? "").trim(),
+      bandeira: String(dados.get("bandeira") ?? "").trim(),
+      limite: String(dados.get("limite") ?? ""),
+      fechamento: String(dados.get("fechamento") ?? ""),
+      vencimento: String(dados.get("vencimento") ?? ""),
+      emoji,
+      cor,
+    };
+
+    const resultado =
+      modo === "criar" ? await createCartao(input) : await updateCartao(cartaoExistente!.id, input);
+
+    if (resultado.error) {
+      setErro(resultado.error);
+      setSalvando(false);
+      return;
+    }
+
+    router.push("/cartoes");
+    router.refresh();
   }
 
   return (
@@ -31,12 +58,13 @@ export default function CardForm({ modo, cartaoExistente }: CardFormProps) {
       <FormSection title="Dados do cartão">
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Nome do cartão" id="nome" placeholder="Ex: Cartão Carol" defaultValue={cartaoExistente?.nome} />
-            <Input label="Titular" id="titular" placeholder="Ex: Carol" defaultValue={cartaoExistente?.titular} />
+            <Input label="Nome do cartão" id="nome" name="nome" placeholder="Ex: Cartão Carol" defaultValue={cartaoExistente?.nome} required />
+            <Input label="Titular" id="titular" name="titular" placeholder="Ex: Carol" defaultValue={cartaoExistente?.titular} />
           </div>
           <Input
             label="Bandeira (opcional)"
             id="bandeira"
+            name="bandeira"
             placeholder="Ex: Mastercard, Visa..."
             defaultValue={cartaoExistente?.bandeira}
           />
@@ -44,6 +72,7 @@ export default function CardForm({ modo, cartaoExistente }: CardFormProps) {
             <Input
               label="Limite (opcional)"
               id="limite"
+              name="limite"
               inputMode="decimal"
               placeholder="R$ 0,00"
               defaultValue={cartaoExistente?.limite !== undefined ? String(cartaoExistente.limite) : undefined}
@@ -51,6 +80,7 @@ export default function CardForm({ modo, cartaoExistente }: CardFormProps) {
             <Input
               label="Dia de fechamento (opcional)"
               id="fechamento"
+              name="fechamento"
               type="number"
               min={1}
               max={31}
@@ -60,6 +90,7 @@ export default function CardForm({ modo, cartaoExistente }: CardFormProps) {
             <Input
               label="Dia de vencimento (opcional)"
               id="vencimento"
+              name="vencimento"
               type="number"
               min={1}
               max={31}
@@ -80,14 +111,17 @@ export default function CardForm({ modo, cartaoExistente }: CardFormProps) {
         </div>
       </FormSection>
 
+      {erro && (
+        <p className="text-sm text-bloom bg-bloom-soft/50 rounded-2xl px-4 py-2.5 animate-fade-in">
+          {erro}
+        </p>
+      )}
+
       <div className="flex flex-col-reverse sm:flex-row items-center gap-3 sm:justify-end">
-        {salvo && (
-          <span className="flex items-center gap-1.5 text-sm font-medium text-sage animate-fade-in sm:mr-auto">
-            <Check size={16} /> {modo === "criar" ? "Cartão criado" : "Alterações salvas"} (modo de demonstração)
-          </span>
-        )}
         <SecondaryButton href="/cartoes">Cancelar</SecondaryButton>
-        <PrimaryButton type="submit">{modo === "criar" ? "Adicionar cartão" : "Salvar alterações"}</PrimaryButton>
+        <PrimaryButton type="submit" disabled={salvando}>
+          {salvando ? "Salvando..." : modo === "criar" ? "Adicionar cartão" : "Salvar alterações"}
+        </PrimaryButton>
       </div>
     </form>
   );

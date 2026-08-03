@@ -23,18 +23,19 @@ const frequenciaLabel: Record<ContaFixa["frequencia"], string> = {
 
 interface FixedBillCardProps {
   conta: ContaFixa;
+  processando?: boolean;
   onPausar: () => void;
   onRetomar: () => void;
   onPular: () => void;
   onArquivar: () => void;
 }
 
-export default function FixedBillCard({ conta, onPausar, onRetomar, onPular, onArquivar }: FixedBillCardProps) {
+export default function FixedBillCard({ conta, processando, onPausar, onRetomar, onPular, onArquivar }: FixedBillCardProps) {
   const status = statusStyles[conta.status];
   const pausadaOuPulada = conta.status === "pausada" || conta.status === "pulada";
 
   return (
-    <div className="rounded-2xl bg-white border border-black/5 shadow-soft p-3.5 sm:p-4">
+    <div className={cn("rounded-2xl bg-white border border-black/5 shadow-soft p-3.5 sm:p-4 transition-opacity", processando && "opacity-55")}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <span className="text-xl shrink-0">{conta.emoji}</span>

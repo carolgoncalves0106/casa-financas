@@ -10,7 +10,7 @@ import Select from "@/components/ui/Select";
 import CategoryDonutChart from "@/components/dashboard/CategoryDonutChart";
 import CategorySummaryList from "@/components/dashboard/CategorySummaryList";
 import { CategoriaGasto } from "@/lib/types";
-import { MesEvolucao } from "@/lib/mock/relatorios";
+import { MesEvolucao } from "@/lib/data/relatorios";
 import { formatBRL } from "@/lib/utils";
 
 interface ReportsPageProps {

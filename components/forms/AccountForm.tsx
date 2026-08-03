@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { useRouter } from "next/navigation";
 import FormSection from "@/components/ui/FormSection";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
@@ -14,26 +14,63 @@ import { inputClass } from "@/components/ui/FormField";
 import {
   ContaBancaria,
   CorConta,
+  TipoContaBancaria,
   tiposContaBancaria,
   iconesContaDisponiveis,
   coresContaDisponiveis,
 } from "@/lib/types";
+import { createConta, updateConta } from "@/lib/data/contas-actions";
 
 interface AccountFormProps {
   modo: "criar" | "editar";
   contaExistente?: ContaBancaria;
 }
 
+/** dataSaldoInicial vem como dd/mm/aaaa (pt-BR) — <input type="date"> precisa de aaaa-mm-dd */
+function paraDataInput(valor?: string): string | undefined {
+  if (!valor) return undefined;
+  const [dia, mes, ano] = valor.split("/");
+  if (!dia || !mes || !ano) return undefined;
+  return `${ano}-${mes}-${dia}`;
+}
+
 export default function AccountForm({ modo, contaExistente }: AccountFormProps) {
+  const router = useRouter();
   const [emoji, setEmoji] = useState(contaExistente?.emoji ?? iconesContaDisponiveis[0]);
   const [cor, setCor] = useState<CorConta>(contaExistente?.cor ?? coresContaDisponiveis[0].value);
-  const [salvo, setSalvo] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    // Nesta etapa não há gravação real — apenas confirmação visual.
-    setSalvo(true);
-    setTimeout(() => setSalvo(false), 3500);
+    setErro(null);
+    setSalvando(true);
+
+    const dados = new FormData(e.currentTarget);
+    const valorSaldo = String(dados.get("saldoInicial") ?? "0").replace(",", ".");
+
+    const input = {
+      nome: String(dados.get("nome") ?? "").trim(),
+      banco: String(dados.get("banco") ?? "").trim(),
+      tipoConta: String(dados.get("tipoConta")) as TipoContaBancaria,
+      saldoInicial: parseFloat(valorSaldo) || 0,
+      dataSaldoInicial: String(dados.get("dataSaldoInicial") ?? ""),
+      emoji: String(dados.get("emoji") ?? emoji),
+      cor: String(dados.get("cor") ?? cor) as CorConta,
+      observacao: String(dados.get("observacao") ?? "").trim(),
+    };
+
+    const resultado =
+      modo === "criar" ? await createConta(input) : await updateConta(contaExistente!.id, input);
+
+    if (resultado.error) {
+      setErro(resultado.error);
+      setSalvando(false);
+      return;
+    }
+
+    router.push("/contas");
+    router.refresh();
   }
 
   return (
@@ -44,12 +81,15 @@ export default function AccountForm({ modo, contaExistente }: AccountFormProps) 
             <Input
               label="Nome da conta"
               id="nome"
+              name="nome"
               placeholder="Ex: Nubank"
               defaultValue={contaExistente?.nome}
+              required
             />
             <Input
               label="Banco ou instituição"
               id="banco"
+              name="banco"
               placeholder="Ex: Nu Pagamentos"
               defaultValue={contaExistente?.banco}
             />
@@ -58,6 +98,7 @@ export default function AccountForm({ modo, contaExistente }: AccountFormProps) 
           <Select
             label="Tipo da conta"
             id="tipoConta"
+            name="tipoConta"
             defaultValue={contaExistente?.tipoConta ?? "corrente"}
             options={tiposContaBancaria.map((t) => ({ value: t.value, label: t.label }))}
           />
@@ -66,11 +107,17 @@ export default function AccountForm({ modo, contaExistente }: AccountFormProps) 
             <Input
               label="Saldo inicial"
               id="saldoInicial"
+              name="saldoInicial"
               inputMode="decimal"
               placeholder="R$ 0,00"
               defaultValue={contaExistente ? String(contaExistente.saldoInicial) : undefined}
             />
-            <DatePicker label="Data do saldo inicial" id="dataSaldoInicial" />
+            <DatePicker
+              label="Data do saldo inicial"
+              id="dataSaldoInicial"
+              name="dataSaldoInicial"
+              defaultValue={paraDataInput(contaExistente?.dataSaldoInicial)}
+            />
           </div>
         </div>
       </FormSection>
@@ -79,6 +126,8 @@ export default function AccountForm({ modo, contaExistente }: AccountFormProps) 
         <div className="flex flex-col gap-4">
           <IconPicker label="Ícone" options={iconesContaDisponiveis} value={emoji} onChange={setEmoji} />
           <ColorPicker label="Cor" options={coresContaDisponiveis} value={cor} onChange={setCor} />
+          <input type="hidden" name="emoji" value={emoji} />
+          <input type="hidden" name="cor" value={cor} />
         </div>
       </FormSection>
 
@@ -89,6 +138,7 @@ export default function AccountForm({ modo, contaExistente }: AccountFormProps) 
           </label>
           <textarea
             id="observacao"
+            name="observacao"
             rows={3}
             placeholder="Ex: Reserva para a viagem de fim de ano"
             defaultValue={contaExistente?.observacao}
@@ -97,15 +147,16 @@ export default function AccountForm({ modo, contaExistente }: AccountFormProps) 
         </div>
       </FormSection>
 
+      {erro && (
+        <p className="text-sm text-bloom bg-bloom-soft/50 rounded-2xl px-4 py-2.5 animate-fade-in">
+          {erro}
+        </p>
+      )}
+
       <div className="flex flex-col-reverse sm:flex-row items-center gap-3 sm:justify-end">
-        {salvo && (
-          <span className="flex items-center gap-1.5 text-sm font-medium text-sage animate-fade-in sm:mr-auto">
-            <Check size={16} /> {modo === "criar" ? "Conta criada" : "Alterações salvas"} (modo de demonstração)
-          </span>
-        )}
         <SecondaryButton href="/contas">Cancelar</SecondaryButton>
-        <PrimaryButton type="submit">
-          {modo === "criar" ? "Adicionar conta" : "Salvar alterações"}
+        <PrimaryButton type="submit" disabled={salvando}>
+          {salvando ? "Salvando..." : modo === "criar" ? "Adicionar conta" : "Salvar alterações"}
         </PrimaryButton>
       </div>
     </form>

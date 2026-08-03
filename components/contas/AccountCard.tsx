@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, Pencil, SlidersHorizontal, PlusCircle, Archive } from "lucide-react";
 import { ContaBancaria } from "@/lib/types";
 import { formatBRL, cn } from "@/lib/utils";
 import ActionMenu from "@/components/ui/ActionMenu";
+import { arquivarConta } from "@/lib/data/contas-actions";
 
 const corStyles: Record<ContaBancaria["cor"], string> = {
   peach: "bg-peach",
@@ -18,20 +20,31 @@ const corStyles: Record<ContaBancaria["cor"], string> = {
 };
 
 export default function AccountCard({ conta }: { conta: ContaBancaria }) {
-  const [arquivada, setArquivada] = useState(!!conta.arquivada);
+  const router = useRouter();
+  const [arquivando, setArquivando] = useState(false);
 
-  function handleArquivar() {
+  async function handleArquivar() {
     const confirmado = window.confirm(
-      `Arquivar "${conta.nome}"? Ela deixa de aparecer nas listas ativas, mas o histórico é mantido. (demonstração — nada é salvo ainda)`
+      `Arquivar "${conta.nome}"? Ela deixa de aparecer nas listas ativas, mas o histórico é mantido.`
     );
-    if (confirmado) setArquivada(true);
+    if (!confirmado) return;
+
+    setArquivando(true);
+    const resultado = await arquivarConta(conta.id);
+    setArquivando(false);
+
+    if (resultado.error) {
+      alert(`Não foi possível arquivar: ${resultado.error}`);
+      return;
+    }
+    router.refresh();
   }
 
   return (
     <div
       className={cn(
         "relative rounded-2xl sm:rounded-3xl bg-white border border-black/5 shadow-soft p-4 sm:p-5 transition-opacity",
-        arquivada && "opacity-55"
+        (conta.arquivada || arquivando) && "opacity-55"
       )}
     >
       <div className="flex items-start justify-between gap-2 mb-3">
@@ -75,14 +88,14 @@ export default function AccountCard({ conta }: { conta: ContaBancaria }) {
         <span className="text-[11px] text-ink-faint">{conta.ultimaAtualizacao}</span>
       </div>
 
-      {(conta.lancamentosPrevistos > 0 || arquivada) && (
+      {(conta.lancamentosPrevistos > 0 || conta.arquivada) && (
         <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
           {conta.lancamentosPrevistos > 0 && (
             <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full bg-butter-soft text-clay">
               🕓 {conta.lancamentosPrevistos} previsto{conta.lancamentosPrevistos > 1 ? "s" : ""}
             </span>
           )}
-          {arquivada && (
+          {conta.arquivada && (
             <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full bg-ink/5 text-ink-faint">
               📦 Arquivada
             </span>

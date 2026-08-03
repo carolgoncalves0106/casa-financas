@@ -5,13 +5,14 @@ import AppShell from "@/components/layout/AppShell";
 import PageHeader from "@/components/ui/PageHeader";
 import SummaryCard from "@/components/ui/SummaryCard";
 import AccountLancamentosPanel from "@/components/contas/AccountLancamentosPanel";
-import { contas, todosLancamentos } from "@/lib/mock";
+import { getConta } from "@/lib/data/contas";
+import { getLancamentosPorConta } from "@/lib/data/lancamentos";
 
-export default function ContaDetalhePage({ params }: { params: { id: string } }) {
-  const conta = contas.find((c) => c.id === params.id);
+export default async function ContaDetalhePage({ params }: { params: { id: string } }) {
+  const conta = await getConta(params.id);
   if (!conta) notFound();
 
-  const lancamentosConta = todosLancamentos.filter((l) => l.origem === conta.nome);
+  const lancamentosConta = await getLancamentosPorConta(conta.id, conta.nome);
   const realizados = lancamentosConta.filter((l) => !l.previsto);
   const previstos = lancamentosConta.filter((l) => l.previsto);
 

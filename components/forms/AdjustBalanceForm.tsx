@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Info, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Info } from "lucide-react";
 import FormSection from "@/components/ui/FormSection";
 import Input from "@/components/ui/Input";
 import DatePicker from "@/components/ui/DatePicker";
@@ -9,10 +10,15 @@ import PrimaryButton from "@/components/ui/PrimaryButton";
 import SecondaryButton from "@/components/ui/SecondaryButton";
 import { ContaBancaria } from "@/lib/types";
 import { formatBRL, cn } from "@/lib/utils";
+import { ajustarSaldo } from "@/lib/data/contas-actions";
 
 export default function AdjustBalanceForm({ conta }: { conta: ContaBancaria }) {
+  const router = useRouter();
   const [saldoInformado, setSaldoInformado] = useState<string>("");
-  const [salvo, setSalvo] = useState(false);
+  const [data, setData] = useState("");
+  const [observacao, setObservacao] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
 
   const valorInformado = parseFloat(saldoInformado.replace(",", "."));
   const diferenca = useMemo(() => {
@@ -20,10 +26,32 @@ export default function AdjustBalanceForm({ conta }: { conta: ContaBancaria }) {
     return valorInformado - conta.saldoAtual;
   }, [valorInformado, conta.saldoAtual]);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSalvo(true);
-    setTimeout(() => setSalvo(false), 3500);
+    setErro(null);
+
+    if (isNaN(valorInformado)) {
+      setErro("Informe o saldo que você conferiu antes de confirmar.");
+      return;
+    }
+
+    setSalvando(true);
+    const resultado = await ajustarSaldo({
+      contaId: conta.id,
+      saldoCalculado: conta.saldoAtual,
+      saldoInformado: valorInformado,
+      data,
+      observacao,
+    });
+    setSalvando(false);
+
+    if (resultado.error) {
+      setErro(resultado.error);
+      return;
+    }
+
+    router.push(`/contas/${conta.id}`);
+    router.refresh();
   }
 
   return (
@@ -32,7 +60,7 @@ export default function AdjustBalanceForm({ conta }: { conta: ContaBancaria }) {
         <Info size={16} className="text-clay shrink-0 mt-0.5" />
         <p className="text-xs text-ink-soft leading-relaxed">
           Um ajuste de saldo é uma <strong>movimentação financeira</strong>, não uma despesa —
-          no futuro ele não vai entrar nos gráficos de gastos, só corrige o saldo da conta.
+          ele não entra nos gráficos de gastos, só corrige o saldo da conta.
         </p>
       </div>
 
@@ -71,20 +99,34 @@ export default function AdjustBalanceForm({ conta }: { conta: ContaBancaria }) {
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <DatePicker label="Data do ajuste" id="data-ajuste" />
-            <Input label="Observação (opcional)" id="obs-ajuste" placeholder="Ex: Conferência mensal" />
+            <DatePicker
+              label="Data do ajuste"
+              id="data-ajuste"
+              value={data}
+              onChange={(e) => setData(e.target.value)}
+            />
+            <Input
+              label="Observação (opcional)"
+              id="obs-ajuste"
+              placeholder="Ex: Conferência mensal"
+              value={observacao}
+              onChange={(e) => setObservacao(e.target.value)}
+            />
           </div>
         </div>
       </FormSection>
 
+      {erro && (
+        <p className="text-sm text-bloom bg-bloom-soft/50 rounded-2xl px-4 py-2.5 animate-fade-in">
+          {erro}
+        </p>
+      )}
+
       <div className="flex flex-col-reverse sm:flex-row items-center gap-3 sm:justify-end">
-        {salvo && (
-          <span className="flex items-center gap-1.5 text-sm font-medium text-sage animate-fade-in sm:mr-auto">
-            <Check size={16} /> Ajuste registrado (modo de demonstração)
-          </span>
-        )}
         <SecondaryButton href={`/contas/${conta.id}`}>Cancelar</SecondaryButton>
-        <PrimaryButton type="submit">Confirmar ajuste</PrimaryButton>
+        <PrimaryButton type="submit" disabled={salvando}>
+          {salvando ? "Salvando..." : "Confirmar ajuste"}
+        </PrimaryButton>
       </div>
     </form>
   );

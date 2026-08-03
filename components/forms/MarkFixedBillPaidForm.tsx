@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { useRouter } from "next/navigation";
 import FormSection from "@/components/ui/FormSection";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
@@ -11,18 +11,48 @@ import Toggle from "@/components/ui/Toggle";
 import PrimaryButton from "@/components/ui/PrimaryButton";
 import SecondaryButton from "@/components/ui/SecondaryButton";
 import { ContaFixa } from "@/lib/types";
-import { origensDisponiveis } from "@/lib/mock";
 import { formatBRL } from "@/lib/utils";
+import { marcarContaFixaPaga } from "@/lib/data/contas-fixas-actions";
 
-export default function MarkFixedBillPaidForm({ conta }: { conta: ContaFixa }) {
+interface OrigemOpcao {
+  id: string;
+  nome: string;
+  emoji: string;
+}
+
+export default function MarkFixedBillPaidForm({ conta, origens }: { conta: ContaFixa; origens: OrigemOpcao[] }) {
+  const router = useRouter();
   const [valorPago, setValorPago] = useState(String(conta.valorPrevisto));
+  const [data, setData] = useState("");
+  const [origemUsada, setOrigemUsada] = useState(conta.origem);
+  const [observacao, setObservacao] = useState("");
   const [usarProximosMeses, setUsarProximosMeses] = useState<"nao" | "sim">("nao");
-  const [salvo, setSalvo] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSalvo(true);
-    setTimeout(() => setSalvo(false), 3500);
+    setErro(null);
+    setSalvando(true);
+
+    const resultado = await marcarContaFixaPaga({
+      contaFixaId: conta.id,
+      valorPago: parseFloat(valorPago.replace(",", ".")) || 0,
+      data,
+      origemNome: origemUsada,
+      observacao,
+      usarNovoValorNosProximosMeses: usarProximosMeses === "sim",
+    });
+
+    setSalvando(false);
+
+    if (resultado.error) {
+      setErro(resultado.error);
+      return;
+    }
+
+    router.push("/contas-fixas");
+    router.refresh();
   }
 
   return (
@@ -46,12 +76,13 @@ export default function MarkFixedBillPaidForm({ conta }: { conta: ContaFixa }) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <DatePicker label="Data do pagamento" id="data-pagamento" />
+            <DatePicker label="Data do pagamento" id="data-pagamento" value={data} onChange={(e) => setData(e.target.value)} />
             <Select
               label="Origem usada"
               id="origem-usada"
-              defaultValue={conta.origem}
-              options={origensDisponiveis.map((o) => ({ value: o.nome, label: `${o.emoji} ${o.nome}` }))}
+              value={origemUsada}
+              onChange={(e) => setOrigemUsada(e.target.value)}
+              options={origens.map((o) => ({ value: o.nome, label: `${o.emoji} ${o.nome}` }))}
             />
           </div>
 
@@ -67,18 +98,27 @@ export default function MarkFixedBillPaidForm({ conta }: { conta: ContaFixa }) {
             ]}
           />
 
-          <Input label="Observação (opcional)" id="observacao" placeholder="Ex: Valor com desconto de pontualidade" />
+          <Input
+            label="Observação (opcional)"
+            id="observacao"
+            placeholder="Ex: Valor com desconto de pontualidade"
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
+          />
         </div>
       </FormSection>
 
+      {erro && (
+        <p className="text-sm text-bloom bg-bloom-soft/50 rounded-2xl px-4 py-2.5 animate-fade-in">
+          {erro}
+        </p>
+      )}
+
       <div className="flex flex-col-reverse sm:flex-row items-center gap-3 sm:justify-end">
-        {salvo && (
-          <span className="flex items-center gap-1.5 text-sm font-medium text-sage animate-fade-in sm:mr-auto">
-            <Check size={16} /> Pagamento registrado (modo de demonstração)
-          </span>
-        )}
         <SecondaryButton href="/contas-fixas">Cancelar</SecondaryButton>
-        <PrimaryButton type="submit">Confirmar pagamento</PrimaryButton>
+        <PrimaryButton type="submit" disabled={salvando}>
+          {salvando ? "Salvando..." : "Confirmar pagamento"}
+        </PrimaryButton>
       </div>
     </form>
   );

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, ShoppingBag, Pencil, CheckCircle2, Archive } from "lucide-react";
 import { CartaoCredito } from "@/lib/types";
 import { formatBRL, cn } from "@/lib/utils";
 import ActionMenu from "@/components/ui/ActionMenu";
+import { arquivarCartao } from "@/lib/data/cartoes-actions";
 
 const corStyles: Record<CartaoCredito["cor"], string> = {
   peach: "bg-peach",
@@ -24,22 +25,27 @@ const statusStyles = {
 };
 
 export default function CardTile({ cartao }: { cartao: CartaoCredito }) {
-  const [arquivado, setArquivado] = useState(!!cartao.arquivado);
+  const router = useRouter();
   const status = statusStyles[cartao.statusFatura];
   const disponivel = cartao.limite !== undefined ? cartao.limite - cartao.faturaAtual : undefined;
 
-  function handleArquivar() {
-    const ok = window.confirm(
-      `Arquivar "${cartao.nome}"? O histórico é mantido. (demonstração — nada é salvo ainda)`
-    );
-    if (ok) setArquivado(true);
+  async function handleArquivar() {
+    const ok = window.confirm(`Arquivar "${cartao.nome}"? O histórico é mantido.`);
+    if (!ok) return;
+
+    const resultado = await arquivarCartao(cartao.id);
+    if (resultado.error) {
+      alert(`Não foi possível arquivar: ${resultado.error}`);
+      return;
+    }
+    router.refresh();
   }
 
   return (
     <div
       className={cn(
         "relative rounded-2xl sm:rounded-3xl bg-white border border-black/5 shadow-soft p-4 sm:p-5 transition-opacity",
-        arquivado && "opacity-55"
+        cartao.arquivado && "opacity-55"
       )}
     >
       <div className="flex items-start justify-between gap-2 mb-3">
@@ -89,14 +95,14 @@ export default function CardTile({ cartao }: { cartao: CartaoCredito }) {
         {cartao.fechamento && <span>Fecha dia {cartao.fechamento}</span>}
       </div>
 
-      {(cartao.limite !== undefined || arquivado) && (
+      {(cartao.limite !== undefined || cartao.arquivado) && (
         <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
           {cartao.limite !== undefined && disponivel !== undefined && (
             <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full bg-sage-soft text-sage">
               💳 {formatBRL(disponivel)} disponível de {formatBRL(cartao.limite)}
             </span>
           )}
-          {arquivado && (
+          {cartao.arquivado && (
             <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full bg-ink/5 text-ink-faint">
               📦 Arquivado
             </span>

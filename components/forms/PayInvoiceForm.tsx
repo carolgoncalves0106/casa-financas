@@ -1,25 +1,56 @@
 "use client";
 
 import { useState } from "react";
-import { Info, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Info } from "lucide-react";
 import FormSection from "@/components/ui/FormSection";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import DatePicker from "@/components/ui/DatePicker";
 import PrimaryButton from "@/components/ui/PrimaryButton";
 import SecondaryButton from "@/components/ui/SecondaryButton";
-import { CartaoCredito } from "@/lib/types";
-import { contas } from "@/lib/mock";
+import { CartaoCredito, ContaBancaria } from "@/lib/types";
 import { formatBRL } from "@/lib/utils";
+import { marcarFaturaPaga } from "@/lib/data/cartoes-actions";
 
-export default function PayInvoiceForm({ cartao }: { cartao: CartaoCredito }) {
+function competenciaAtual(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+export default function PayInvoiceForm({ cartao, contas }: { cartao: CartaoCredito; contas: ContaBancaria[] }) {
+  const router = useRouter();
   const [valorPago, setValorPago] = useState(String(cartao.faturaAtual));
-  const [salvo, setSalvo] = useState(false);
+  const [data, setData] = useState("");
+  const [contaId, setContaId] = useState(contas[0]?.id ?? "");
+  const [observacao, setObservacao] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSalvo(true);
-    setTimeout(() => setSalvo(false), 3500);
+    setErro(null);
+    setSalvando(true);
+
+    const resultado = await marcarFaturaPaga({
+      cartaoId: cartao.id,
+      competencia: competenciaAtual(),
+      valorFatura: cartao.faturaAtual,
+      valorPago: parseFloat(valorPago.replace(",", ".")) || 0,
+      data,
+      contaId: cartao.afetaContaAoPagar ? contaId : undefined,
+      observacao,
+    });
+
+    setSalvando(false);
+
+    if (resultado.error) {
+      setErro(resultado.error);
+      return;
+    }
+
+    router.push(`/cartoes/${cartao.id}`);
+    router.refresh();
   }
 
   return (
@@ -29,8 +60,8 @@ export default function PayInvoiceForm({ cartao }: { cartao: CartaoCredito }) {
         <p className="text-xs text-ink-soft leading-relaxed">
           {cartao.afetaContaAoPagar ? (
             <>
-              Marcar como paga vai gerar, no futuro, uma <strong>movimentação financeira</strong> que
-              afeta o saldo da conta escolhida — mas não entra nos gráficos de despesas.
+              Marcar como paga gera uma <strong>movimentação financeira</strong> que afeta o saldo
+              da conta escolhida — mas não entra nos gráficos de despesas.
             </>
           ) : (
             <>
@@ -60,11 +91,13 @@ export default function PayInvoiceForm({ cartao }: { cartao: CartaoCredito }) {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <DatePicker label="Data do pagamento" id="data-pagamento" />
+            <DatePicker label="Data do pagamento" id="data-pagamento" value={data} onChange={(e) => setData(e.target.value)} />
             {cartao.afetaContaAoPagar ? (
               <Select
                 label="Conta usada para pagamento"
                 id="conta-pagamento"
+                value={contaId}
+                onChange={(e) => setContaId(e.target.value)}
                 options={contas.map((c) => ({ value: c.id, label: `${c.emoji} ${c.nome}` }))}
               />
             ) : (
@@ -77,18 +110,27 @@ export default function PayInvoiceForm({ cartao }: { cartao: CartaoCredito }) {
             )}
           </div>
 
-          <Input label="Observação (opcional)" id="obs-pagamento" placeholder="Ex: Pago no débito automático" />
+          <Input
+            label="Observação (opcional)"
+            id="obs-pagamento"
+            placeholder="Ex: Pago no débito automático"
+            value={observacao}
+            onChange={(e) => setObservacao(e.target.value)}
+          />
         </div>
       </FormSection>
 
+      {erro && (
+        <p className="text-sm text-bloom bg-bloom-soft/50 rounded-2xl px-4 py-2.5 animate-fade-in">
+          {erro}
+        </p>
+      )}
+
       <div className="flex flex-col-reverse sm:flex-row items-center gap-3 sm:justify-end">
-        {salvo && (
-          <span className="flex items-center gap-1.5 text-sm font-medium text-sage animate-fade-in sm:mr-auto">
-            <Check size={16} /> Fatura marcada como paga (modo de demonstração)
-          </span>
-        )}
         <SecondaryButton href={`/cartoes/${cartao.id}`}>Cancelar</SecondaryButton>
-        <PrimaryButton type="submit">Marcar como paga</PrimaryButton>
+        <PrimaryButton type="submit" disabled={salvando}>
+          {salvando ? "Salvando..." : "Marcar como paga"}
+        </PrimaryButton>
       </div>
     </form>
   );

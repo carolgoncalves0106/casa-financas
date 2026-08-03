@@ -3,9 +3,11 @@ import { Plus } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import PageHeader from "@/components/ui/PageHeader";
 import FixedBillsBoard from "@/components/contas-fixas/FixedBillsBoard";
-import { contasFixas } from "@/lib/mock";
+import { getContasFixas } from "@/lib/data/contas-fixas";
 
-export default function ContasFixasPage() {
+export default async function ContasFixasPage() {
+  const contasFixas = await getContasFixas();
+
   return (
     <AppShell>
       <PageHeader
