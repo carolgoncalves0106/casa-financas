@@ -146,7 +146,7 @@ export default function CategoryManager({
               <div key={c.id} className="flex flex-col gap-1.5">
                 <CategoryRow
                   categoria={c}
-                  arquivada={c.arquivada}
+                  arquivada={!!c.arquivada}
                   aberta={abertaId === c.id}
                   onToggleAbrir={() => toggleAbrir(c)}
                   onArquivar={() => handleArquivar(c)}
