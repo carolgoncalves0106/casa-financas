@@ -20,9 +20,11 @@ export async function getCategorias(tipo?: TipoCategoria): Promise<CategoriaComp
   if (error || !data) return [];
 
   const { data: usados } = await supabase.from("casa_lancamentos").select("categoria_id");
-  const idsComLancamento = new Set((usados ?? []).map((u) => u.categoria_id).filter(Boolean));
+  const idsComLancamento = new Set(
+    ((usados ?? []) as { categoria_id: string | null }[]).map((u) => u.categoria_id).filter(Boolean)
+  );
 
-  return (data as CategoriaRow[]).map((row) => ({
+  return (data as CategoriaRow[]).map((row: CategoriaRow) => ({
     id: row.id,
     emoji: row.emoji,
     nome: row.nome,

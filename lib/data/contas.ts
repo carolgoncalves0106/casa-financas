@@ -75,12 +75,15 @@ export async function getContas(): Promise<ContaBancaria[]> {
     return [];
   }
 
-  const saldoPorConta = new Map((saldos ?? []).map((s) => [s.conta_id, Number(s.saldo_atual)]));
+  const saldoPorConta = new Map<string, number>(
+    (saldos ?? []).map((s: { conta_id: string; saldo_atual: number }) => [s.conta_id, Number(s.saldo_atual)])
+  );
 
   return Promise.all(
-    contas.map(async (row: ContaRow) => {
+    (contas as ContaRow[]).map(async (row: ContaRow) => {
       const previstos = await contarLancamentosPrevistos(row.id);
-      return mapConta(row, saldoPorConta.get(row.id) ?? Number(row.saldo_inicial), previstos);
+      const saldoAtual: number = saldoPorConta.get(row.id) ?? Number(row.saldo_inicial);
+      return mapConta(row, saldoAtual, previstos);
     })
   );
 }
@@ -95,7 +98,10 @@ export async function getConta(id: string): Promise<ContaBancaria | null> {
 
   if (error || !row) return null;
 
+  const contaTipada = row as ContaRow;
+  const saldoTipado = saldoRow as { saldo_atual: number } | null;
+
   const previstos = await contarLancamentosPrevistos(id);
-  const saldoAtual = saldoRow ? Number(saldoRow.saldo_atual) : Number(row.saldo_inicial);
-  return mapConta(row, saldoAtual, previstos);
+  const saldoAtual: number = saldoTipado ? Number(saldoTipado.saldo_atual) : Number(contaTipada.saldo_inicial);
+  return mapConta(contaTipada, saldoAtual, previstos);
 }

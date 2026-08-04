@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { Lancamento, TipoLancamento } from "@/lib/types";
+import { primeiroRelacionado } from "@/lib/utils";
 
 interface LancamentoRow {
   id: string;
@@ -11,7 +12,9 @@ interface LancamentoRow {
   previsto: boolean;
   parcela_atual: number | null;
   parcela_total: number | null;
-  casa_categorias: { nome: string } | null;
+  // Sem tipos gerados do schema, o Supabase tipa relações N-para-1 do
+  // PostgREST como array — mesmo cada lançamento só tendo uma categoria.
+  casa_categorias: { nome: string }[] | null;
 }
 
 function formatarQuando(dataISO: string): string {
@@ -28,8 +31,8 @@ function formatarQuando(dataISO: string): string {
 interface LancamentoRowCompleto extends LancamentoRow {
   origem_conta_id: string | null;
   origem_cartao_id: string | null;
-  casa_contas: { nome: string } | null;
-  casa_cartoes: { nome: string } | null;
+  casa_contas: { nome: string }[] | null;
+  casa_cartoes: { nome: string }[] | null;
 }
 
 /** Lista geral de lançamentos — usada na tela Lançamentos. */
@@ -49,8 +52,10 @@ export async function getLancamentos(): Promise<Lancamento[]> {
     id: row.id,
     emoji: row.emoji,
     descricao: row.descricao,
-    categoria: row.casa_categorias?.nome ?? (row.tipo === "movimentacao" ? "Movimentação financeira" : ""),
-    origem: row.casa_contas?.nome ?? row.casa_cartoes?.nome ?? "",
+    categoria:
+      primeiroRelacionado(row.casa_categorias)?.nome ??
+      (row.tipo === "movimentacao" ? "Movimentação financeira" : ""),
+    origem: primeiroRelacionado(row.casa_contas)?.nome ?? primeiroRelacionado(row.casa_cartoes)?.nome ?? "",
     data: formatarQuando(row.data),
     quando: formatarQuando(row.data),
     valor: Number(row.valor),
@@ -87,7 +92,9 @@ export async function getLancamentosPorCartao(cartaoId: string, nomeCartao: stri
     id: row.id,
     emoji: row.emoji,
     descricao: row.descricao,
-    categoria: row.casa_categorias?.nome ?? (row.tipo === "movimentacao" ? "Movimentação financeira" : ""),
+    categoria:
+      primeiroRelacionado(row.casa_categorias)?.nome ??
+      (row.tipo === "movimentacao" ? "Movimentação financeira" : ""),
     origem: nomeCartao,
     data: formatarQuando(row.data),
     quando: formatarQuando(row.data),
@@ -121,7 +128,9 @@ export async function getLancamentosPorConta(contaId: string, nomeConta: string)
     id: row.id,
     emoji: row.emoji,
     descricao: row.descricao,
-    categoria: row.casa_categorias?.nome ?? (row.tipo === "movimentacao" ? "Movimentação financeira" : ""),
+    categoria:
+      primeiroRelacionado(row.casa_categorias)?.nome ??
+      (row.tipo === "movimentacao" ? "Movimentação financeira" : ""),
     origem: nomeConta,
     data: formatarQuando(row.data),
     quando: formatarQuando(row.data),

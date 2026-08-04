@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { ContaFixa, StatusContaFixa, FrequenciaContaFixa } from "@/lib/types";
+import { primeiroRelacionado } from "@/lib/utils";
 
 interface ContaFixaRow {
   id: string;
@@ -19,7 +20,7 @@ interface ContaFixaRow {
   data_inicio: string;
   data_fim: string | null;
   observacao: string | null;
-  casa_categorias: { nome: string } | null;
+  casa_categorias: { nome: string }[] | null;
 }
 
 interface LancamentoDoMes {
@@ -121,7 +122,7 @@ function mapContaFixa(row: ContaFixaRow, lancamento: LancamentoDoMes | null, ori
   return {
     id: row.id,
     nome: row.nome,
-    categoria: row.casa_categorias?.nome ?? "",
+    categoria: primeiroRelacionado(row.casa_categorias)?.nome ?? "",
     emoji: row.emoji,
     descricao: row.descricao ?? undefined,
     valorPrevisto: lancamento ? Number(lancamento.valor) : Number(row.valor_previsto),

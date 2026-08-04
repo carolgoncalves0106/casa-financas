@@ -1,6 +1,23 @@
 import { createClient } from "@/lib/supabase/server";
 import { CategoriaGasto } from "@/lib/types";
 
+interface SaldoContaRow {
+  saldo_atual: number;
+}
+
+interface LancamentoResumoRow {
+  tipo: "entrada" | "saida";
+  valor: number;
+  previsto: boolean;
+}
+
+interface GastoCategoriaRow {
+  emoji: string;
+  nome: string;
+  valor: number;
+  cor: CategoriaGasto["cor"];
+}
+
 function competenciaAtual(): { inicio: string; fim: string } {
   const hoje = new Date();
   const ano = hoje.getFullYear();
@@ -15,7 +32,10 @@ function competenciaAtual(): { inicio: string; fim: string } {
 export async function getSaldoTotal(): Promise<number> {
   const supabase = createClient();
   const { data } = await supabase.from("casa_v_saldo_contas").select("saldo_atual");
-  return (data ?? []).reduce((soma, r) => soma + Number(r.saldo_atual), 0);
+  return ((data ?? []) as SaldoContaRow[]).reduce(
+    (soma: number, r: SaldoContaRow) => soma + Number(r.saldo_atual),
+    0
+  );
 }
 
 export interface ResumoMes {
@@ -45,7 +65,7 @@ export async function getResumoMes(): Promise<ResumoMes> {
   let entradasPrevistas = 0;
   let saidasPrevistas = 0;
 
-  for (const l of lancamentos ?? []) {
+  for (const l of (lancamentos ?? []) as LancamentoResumoRow[]) {
     const valor = Number(l.valor);
     if (l.tipo === "entrada") {
       if (l.previsto) entradasPrevistas += valor;
@@ -64,17 +84,18 @@ export async function getGastosPorCategoriaMes(): Promise<CategoriaGasto[]> {
   const { inicio } = competenciaAtual();
 
   const { data } = await supabase.from("casa_v_gastos_por_categoria_mes").select("*").eq("mes", inicio);
-  if (!data || data.length === 0) return [];
+  const linhas = (data ?? []) as GastoCategoriaRow[];
+  if (linhas.length === 0) return [];
 
-  const total = data.reduce((soma, r) => soma + Number(r.valor), 0);
+  const total = linhas.reduce((soma: number, r: GastoCategoriaRow) => soma + Number(r.valor), 0);
 
-  return data
-    .map((r) => ({
+  return linhas
+    .map((r: GastoCategoriaRow) => ({
       emoji: r.emoji,
       nome: r.nome,
       valor: Number(r.valor),
       percentual: total > 0 ? Math.round((Number(r.valor) / total) * 100) : 0,
       cor: r.cor,
     }))
-    .sort((a, b) => b.valor - a.valor);
+    .sort((a: CategoriaGasto, b: CategoriaGasto) => b.valor - a.valor);
 }

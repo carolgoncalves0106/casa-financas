@@ -34,6 +34,14 @@ function gerarFaturas(): Fatura[] {
   return resultado;
 }
 
+interface FaturaValorRow {
+  valor_fatura: number;
+}
+
+interface FaturaStatusRow {
+  status: string;
+}
+
 async function faturaAtualDoCartao(cartaoId: string): Promise<{ valor: number; status: StatusFatura }> {
   const supabase = createClient();
   const competencia = competenciaAtual();
@@ -53,9 +61,12 @@ async function faturaAtualDoCartao(cartaoId: string): Promise<{ valor: number; s
       .maybeSingle(),
   ]);
 
+  const somaTipada = soma as FaturaValorRow | null;
+  const faturaTipada = faturaRow as FaturaStatusRow | null;
+
   return {
-    valor: soma ? Number(soma.valor_fatura) : 0,
-    status: (faturaRow?.status as StatusFatura) ?? "aberta",
+    valor: somaTipada ? Number(somaTipada.valor_fatura) : 0,
+    status: (faturaTipada?.status as StatusFatura) ?? "aberta",
   };
 }
 

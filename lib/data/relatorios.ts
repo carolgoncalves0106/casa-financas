@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { primeiroRelacionado } from "@/lib/utils";
 
 export const mesesDoAno = [
   "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
@@ -63,8 +64,8 @@ export async function getCategoriaAoLongoDoAno(ano: number): Promise<Record<stri
 
   const resultado: Record<string, number[]> = {};
 
-  for (const row of (data ?? []) as { valor: number; data: string; casa_categorias: { nome: string } | null }[]) {
-    const nomeCategoria = row.casa_categorias?.nome;
+  for (const row of (data ?? []) as { valor: number; data: string; casa_categorias: { nome: string }[] | null }[]) {
+    const nomeCategoria = primeiroRelacionado(row.casa_categorias)?.nome;
     if (!nomeCategoria) continue;
     if (!resultado[nomeCategoria]) resultado[nomeCategoria] = new Array(12).fill(0);
     const mes = new Date(row.data).getMonth();
