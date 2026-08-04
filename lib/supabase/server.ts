@@ -35,3 +35,17 @@ export function createClient() {
     }
   );
 }
+
+/**
+ * ID do usuário autenticado na requisição atual — usado por todas as Server
+ * Actions de escrita pra preencher `user_id` explicitamente em cada insert,
+ * em vez de depender só do valor padrão `default auth.uid()` da coluna.
+ * Retorna `null` se, por algum motivo, não houver sessão válida.
+ */
+export async function getUsuarioAutenticadoId(): Promise<string | null> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user?.id ?? null;
+}

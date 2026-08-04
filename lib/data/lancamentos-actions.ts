@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUsuarioAutenticadoId } from "@/lib/supabase/server";
 
 interface Resultado {
   error: string | null;
@@ -39,6 +39,9 @@ function revalidarTudo() {
 }
 
 export async function createLancamento(input: LancamentoInput): Promise<Resultado> {
+  const userId = await getUsuarioAutenticadoId();
+  if (!userId) return { error: "Sessão expirada — faça login novamente." };
+
   const supabase = createClient();
   const valor = parseFloat((input.valor || "0").replace(",", "."));
   if (!valor || valor <= 0) return { error: "Informe um valor válido." };
@@ -48,6 +51,7 @@ export async function createLancamento(input: LancamentoInput): Promise<Resultad
   // ---- Movimentação financeira ----
   if (input.tipo === "movimentacao") {
     const base = {
+      user_id: userId,
       tipo: "movimentacao" as const,
       subtipo_movimentacao: input.subtipoMovimentacao,
       valor,
@@ -112,6 +116,7 @@ export async function createLancamento(input: LancamentoInput): Promise<Resultad
 
   if (input.tipo === "entrada") {
     const { error } = await supabase.from("casa_lancamentos").insert({
+      user_id: userId,
       tipo: "entrada",
       valor,
       descricao: input.descricao.trim() || "Entrada",
@@ -135,6 +140,7 @@ export async function createLancamento(input: LancamentoInput): Promise<Resultad
 
   if (!input.parcelado) {
     const { error } = await supabase.from("casa_lancamentos").insert({
+      user_id: userId,
       tipo: "saida",
       valor,
       descricao: input.descricao.trim() || "Saída",
@@ -176,6 +182,7 @@ export async function createLancamento(input: LancamentoInput): Promise<Resultad
     d.setMonth(d.getMonth() + i);
     const dataParcela = d.toISOString().slice(0, 10);
     return {
+      user_id: userId,
       tipo: "saida" as const,
       valor: Number(valorParcela.toFixed(2)),
       descricao: input.descricao.trim() || "Saída",

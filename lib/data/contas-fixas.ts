@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUsuarioAutenticadoId } from "@/lib/supabase/server";
 import { ContaFixa, StatusContaFixa, FrequenciaContaFixa } from "@/lib/types";
 import { primeiroRelacionado } from "@/lib/utils";
 
@@ -69,9 +69,13 @@ async function garantirLancamentoDoMes(supabase: any, row: ContaFixaRow): Promis
   if (row.pausada || row.arquivada) return null;
   if (!row.origem_conta_id && !row.origem_cartao_id) return null;
 
+  const userId = await getUsuarioAutenticadoId();
+  if (!userId) return null;
+
   const { data: novo } = await supabase
     .from("casa_lancamentos")
     .insert({
+      user_id: userId,
       tipo: "saida",
       valor: row.valor_previsto,
       descricao: row.nome,

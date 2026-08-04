@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUsuarioAutenticadoId } from "@/lib/supabase/server";
 import { CorConta, TipoContaBancaria } from "@/lib/types";
 
 export interface ContaInput {
@@ -22,8 +22,12 @@ interface Resultado {
 export async function createConta(input: ContaInput): Promise<Resultado> {
   if (!input.nome.trim()) return { error: "Dá um nome pra essa conta antes de salvar." };
 
+  const userId = await getUsuarioAutenticadoId();
+  if (!userId) return { error: "Sessão expirada — faça login novamente." };
+
   const supabase = createClient();
   const { error } = await supabase.from("casa_contas").insert({
+    user_id: userId,
     nome: input.nome.trim(),
     banco: input.banco.trim() || null,
     tipo_conta: input.tipoConta,
@@ -90,8 +94,12 @@ export async function ajustarSaldo(input: AjusteSaldoInput): Promise<Resultado> 
     return { error: "O saldo informado já é igual ao saldo calculado — nada para ajustar." };
   }
 
+  const userId = await getUsuarioAutenticadoId();
+  if (!userId) return { error: "Sessão expirada — faça login novamente." };
+
   const supabase = createClient();
   const { error } = await supabase.from("casa_lancamentos").insert({
+    user_id: userId,
     tipo: "movimentacao",
     subtipo_movimentacao: "ajuste",
     // A view casa_v_saldo_contas subtrai "valor" de movimentações na conta de

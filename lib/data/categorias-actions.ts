@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUsuarioAutenticadoId } from "@/lib/supabase/server";
 import { CorConta, TipoCategoria } from "@/lib/types";
 
 interface Resultado {
@@ -17,8 +17,12 @@ export interface CategoriaInput {
 export async function createCategoria(input: CategoriaInput & { tipo: TipoCategoria }): Promise<Resultado> {
   if (!input.nome.trim()) return { error: "Dá um nome pra essa categoria antes de salvar." };
 
+  const userId = await getUsuarioAutenticadoId();
+  if (!userId) return { error: "Sessão expirada — faça login novamente." };
+
   const supabase = createClient();
   const { error } = await supabase.from("casa_categorias").insert({
+    user_id: userId,
     emoji: input.emoji,
     nome: input.nome.trim(),
     cor: input.cor,

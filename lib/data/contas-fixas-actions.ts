@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUsuarioAutenticadoId } from "@/lib/supabase/server";
 import { FrequenciaContaFixa } from "@/lib/types";
 
 interface Resultado {
@@ -65,12 +65,15 @@ async function montarPayload(input: ContaFixaInput) {
 export async function createContaFixa(input: ContaFixaInput): Promise<Resultado> {
   if (!input.nome.trim()) return { error: "Dá um nome pra essa conta fixa antes de salvar." };
 
+  const userId = await getUsuarioAutenticadoId();
+  if (!userId) return { error: "Sessão expirada — faça login novamente." };
+
   const supabase = createClient();
   const payload = await montarPayload(input);
 
   if (!payload.categoria_id) return { error: "Selecione uma categoria válida." };
 
-  const { error } = await supabase.from("casa_contas_fixas").insert(payload);
+  const { error } = await supabase.from("casa_contas_fixas").insert({ ...payload, user_id: userId });
   if (error) return { error: error.message };
 
   revalidatePath("/contas-fixas");

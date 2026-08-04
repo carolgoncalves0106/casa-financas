@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUsuarioAutenticadoId } from "@/lib/supabase/server";
 import { CorConta } from "@/lib/types";
 
 interface Resultado {
@@ -32,8 +32,12 @@ function paraNumeroOuNull(v: string): number | null {
 export async function createCartao(input: CartaoInput): Promise<Resultado> {
   if (!input.nome.trim()) return { error: "Dá um nome pro cartão antes de salvar." };
 
+  const userId = await getUsuarioAutenticadoId();
+  if (!userId) return { error: "Sessão expirada — faça login novamente." };
+
   const supabase = createClient();
   const { error } = await supabase.from("casa_cartoes").insert({
+    user_id: userId,
     nome: input.nome.trim(),
     titular: input.titular.trim(),
     emoji: input.emoji,
@@ -93,11 +97,15 @@ export interface PagarFaturaInput {
 }
 
 export async function marcarFaturaPaga(input: PagarFaturaInput): Promise<Resultado> {
+  const userId = await getUsuarioAutenticadoId();
+  if (!userId) return { error: "Sessão expirada — faça login novamente." };
+
   const supabase = createClient();
 
   // Registro da fatura em si — sempre acontece, pago afetando conta ou não.
   const { error: faturaError } = await supabase.from("casa_faturas").upsert(
     {
+      user_id: userId,
       cartao_id: input.cartaoId,
       competencia: input.competencia,
       status: "paga",
@@ -115,6 +123,7 @@ export async function marcarFaturaPaga(input: PagarFaturaInput): Promise<Resulta
   // está configurado pra isso — ex: Cartão Carol sim, Cartão Mitch não.
   if (input.contaId) {
     const { error: lancamentoError } = await supabase.from("casa_lancamentos").insert({
+      user_id: userId,
       tipo: "movimentacao",
       subtipo_movimentacao: "pagamento_fatura",
       valor: input.valorPago,
