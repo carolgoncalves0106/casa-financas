@@ -7,6 +7,19 @@ interface Resultado {
   error: string | null;
 }
 
+export async function deleteLancamento(id: string): Promise<Resultado> {
+  const supabase = createClient();
+  const { error } = await supabase.from("casa_lancamentos").delete().eq("id", id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/lancamentos");
+  revalidatePath("/painel");
+  revalidatePath("/contas");
+  revalidatePath("/cartoes");
+  return { error: null };
+}
+
 export interface LancamentoInput {
   tipo: "entrada" | "saida" | "movimentacao";
   valor: string;
@@ -135,7 +148,7 @@ export async function createLancamento(input: LancamentoInput): Promise<Resultad
   // ---- Saída ----
   const camposOrigem =
     input.origemTipo === "cartao"
-      ? { origem_cartao_id: input.origemId, origem_conta_id: null, fatura_id: input.faturaId || null }
+      ? { origem_cartao_id: input.origemId, origem_conta_id: null }
       : { origem_conta_id: input.origemId, origem_cartao_id: null };
 
   if (!input.parcelado) {

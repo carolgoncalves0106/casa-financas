@@ -20,6 +20,8 @@ interface ContaFixaRow {
   data_inicio: string;
   data_fim: string | null;
   observacao: string | null;
+  oculta: boolean;
+  confirmacao_automatica: boolean;
   casa_categorias: { nome: string }[] | null;
 }
 
@@ -88,7 +90,7 @@ async function garantirLancamentoDoMes(supabase: any, row: ContaFixaRow): Promis
       emoji: row.emoji,
       categoria_id: row.categoria_id,
       data: dataDoVencimentoEsteMes(row.dia_vencimento),
-      previsto: true,
+      previsto: !row.confirmacao_automatica,
       origem_conta_id: row.origem_conta_id,
       origem_cartao_id: row.origem_cartao_id,
       conta_fixa_id: row.id,
@@ -174,6 +176,7 @@ export async function getContasFixas(): Promise<ContaFixa[]> {
     .from("casa_contas_fixas")
     .select("*, casa_categorias(nome)")
     .eq("arquivada", false)
+    .eq("oculta", false)
     .order("dia_vencimento", { ascending: true });
 
   if (error || !data) return [];
@@ -183,6 +186,31 @@ export async function getContasFixas(): Promise<ContaFixa[]> {
     const lancamento = await garantirLancamentoDoMes(supabase, row);
     const origem = await nomeOrigem(supabase, row.origem_conta_id, row.origem_cartao_id);
     resultado.push(mapContaFixa(row, lancamento, origem));
+  }
+  return resultado;
+}
+
+/**
+ * Assinaturas recorrentes de um cartão específico — usam a mesma estrutura
+ * de contas fixas (oculta=true), mas aparecem só na tela do cartão, nunca em
+ * Contas fixas, e o lançamento gerado já nasce realizado (sem "marcar como paga").
+ */
+export async function getAssinaturasPorCartao(cartaoId: string): Promise<ContaFixa[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("casa_contas_fixas")
+    .select("*, casa_categorias(nome)")
+    .eq("arquivada", false)
+    .eq("oculta", true)
+    .eq("origem_cartao_id", cartaoId)
+    .order("nome", { ascending: true });
+
+  if (error || !data) return [];
+
+  const resultado: ContaFixa[] = [];
+  for (const row of data as ContaFixaRow[]) {
+    const lancamento = await garantirLancamentoDoMes(supabase, row);
+    resultado.push(mapContaFixa(row, lancamento, ""));
   }
   return resultado;
 }

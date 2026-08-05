@@ -62,6 +62,50 @@ async function montarPayload(input: ContaFixaInput) {
   };
 }
 
+export interface AssinaturaInput {
+  nome: string;
+  categoriaNome: string;
+  valor: string;
+  diaVencimento: string;
+  cartaoId: string;
+}
+
+export async function createAssinatura(input: AssinaturaInput): Promise<Resultado> {
+  if (!input.nome.trim()) return { error: "Dá um nome pra essa assinatura antes de salvar." };
+  if (!input.cartaoId) return { error: "Selecione o cartão." };
+
+  const userId = await getUsuarioAutenticadoId();
+  if (!userId) return { error: "Sessão expirada — faça login novamente." };
+
+  const supabase = createClient();
+  const categoriaId = await resolverCategoriaId(supabase, input.categoriaNome);
+  if (!categoriaId) return { error: "Selecione uma categoria válida." };
+
+  const { error } = await supabase.from("casa_contas_fixas").insert({
+    user_id: userId,
+    nome: input.nome.trim(),
+    categoria_id: categoriaId,
+    valor_previsto: parseFloat(input.valor.replace(",", ".")) || 0,
+    valor_fixo: true,
+    origem_cartao_id: input.cartaoId,
+    dia_vencimento: parseInt(input.diaVencimento, 10) || 1,
+    frequencia: "mensal",
+    lembrete: false,
+    data_inicio: new Date().toISOString().slice(0, 10),
+    // As duas linhas abaixo são o que diferencia uma assinatura de cartão de
+    // uma conta fixa normal: fica fora da lista de Contas fixas, e o
+    // lançamento gerado todo mês já nasce realizado, sem precisar confirmar.
+    oculta: true,
+    confirmacao_automatica: true,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/cartoes/${input.cartaoId}`);
+  revalidatePath("/painel");
+  return { error: null };
+}
+
 export async function createContaFixa(input: ContaFixaInput): Promise<Resultado> {
   if (!input.nome.trim()) return { error: "Dá um nome pra essa conta fixa antes de salvar." };
 

@@ -5,8 +5,11 @@ import AppShell from "@/components/layout/AppShell";
 import PageHeader from "@/components/ui/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
 import TransactionCard from "@/components/ui/TransactionCard";
+import SubscriptionsSection from "@/components/cartoes/SubscriptionsSection";
 import { getCartao } from "@/lib/data/cartoes";
 import { getLancamentosPorCartao } from "@/lib/data/lancamentos";
+import { getAssinaturasPorCartao } from "@/lib/data/contas-fixas";
+import { getCategorias } from "@/lib/data/categorias";
 import { formatBRL, cn } from "@/lib/utils";
 
 const statusFaturaStyles = {
@@ -20,6 +23,10 @@ export default async function CartaoDetalhePage({ params }: { params: { id: stri
   if (!cartao) notFound();
 
   const lancamentosCartao = await getLancamentosPorCartao(cartao.id, cartao.nome);
+  const [assinaturas, categoriasDespesas] = await Promise.all([
+    getAssinaturasPorCartao(cartao.id),
+    getCategorias("despesa"),
+  ]);
   const comprasFatura = lancamentosCartao.filter((l) => !l.previsto);
   const parceladas = comprasFatura.filter((l) => l.parcela);
   const proximasParcelas = lancamentosCartao.filter((l) => l.parcela && l.previsto);
@@ -35,7 +42,7 @@ export default async function CartaoDetalhePage({ params }: { params: { id: stri
         action={
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             <Link
-              href="/lancamentos/novo"
+              href={`/lancamentos/novo?origem=${cartao.id}`}
               className="flex items-center justify-center gap-2 rounded-2xl bg-white border border-black/10 text-ink font-semibold text-sm px-4 py-2.5 shadow-softer hover:bg-cream-soft transition"
             >
               <ShoppingBag size={15} />
@@ -89,6 +96,10 @@ export default async function CartaoDetalhePage({ params }: { params: { id: stri
             Próximas faturas previstas: <span className="font-semibold text-ink">{formatBRL(totalProximaFatura)}</span>
           </p>
         </div>
+      </section>
+
+      <section className="mt-3 sm:mt-4 lg:mt-5">
+        <SubscriptionsSection cartaoId={cartao.id} assinaturas={assinaturas} categorias={categoriasDespesas} />
       </section>
 
       <section className="mt-3 sm:mt-4 lg:mt-5">
