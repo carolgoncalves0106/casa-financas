@@ -40,7 +40,10 @@ export default function FixedBillCard({ conta, processando, onPausar, onRetomar,
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <span className="text-xl shrink-0">{conta.emoji}</span>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-ink truncate">{conta.nome}</p>
+            <p className="text-sm font-medium text-ink truncate flex items-center gap-1">
+              {conta.nome}
+              {conta.lembrete && <span title="Lembrete ativado">🔔</span>}
+            </p>
             <p className="text-xs text-ink-faint truncate">
               {conta.categoria} · dia {conta.diaVencimento} · {frequenciaLabel[conta.frequencia]} · {conta.origem}
             </p>

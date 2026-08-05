@@ -124,7 +124,7 @@ function determinarStatus(row: ContaFixaRow, lancamento: LancamentoDoMes | null)
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const dataLancamento = new Date(lancamento.data + "T00:00:00");
-  return dataLancamento < hoje ? "vencida" : "proxima";
+  return dataLancamento <= hoje ? "vencida" : "proxima";
 }
 
 async function nomeOrigem(
