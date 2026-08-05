@@ -10,11 +10,12 @@ interface CategoriaRow {
   arquivada: boolean;
 }
 
-export async function getCategorias(tipo?: TipoCategoria): Promise<CategoriaCompleta[]> {
+export async function getCategorias(tipo?: TipoCategoria, incluirArquivadas = false): Promise<CategoriaCompleta[]> {
   const supabase = createClient();
 
   let query = supabase.from("casa_categorias").select("*").order("nome", { ascending: true });
   if (tipo) query = query.eq("tipo", tipo);
+  if (!incluirArquivadas) query = query.eq("arquivada", false);
 
   const { data, error } = await query;
   if (error || !data) return [];
