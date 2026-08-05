@@ -55,15 +55,21 @@ function dataDoVencimentoEsteMes(dia: number): string {
 async function garantirLancamentoDoMes(supabase: any, row: ContaFixaRow): Promise<LancamentoDoMes | null> {
   const { inicio, fim } = competenciaAtual();
 
-  const { data: existente } = await supabase
+  // IMPORTANTE: usamos .limit(1) em vez de .maybeSingle() de propósito —
+  // .maybeSingle() dá erro se encontrar mais de uma linha, e isso já causou
+  // duplicação em produção (o erro passava batido, caía no "não existe" e
+  // criava outro lançamento a cada vez que a página era aberta). Com
+  // .limit(1) isso nunca acontece, não importa quantas linhas existam.
+  const { data: existentes } = await supabase
     .from("casa_lancamentos")
     .select("id, data, valor, previsto, pulado")
     .eq("conta_fixa_id", row.id)
     .gte("data", inicio)
     .lte("data", fim)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
 
-  if (existente) return existente as LancamentoDoMes;
+  if (existentes && existentes.length > 0) return existentes[0] as LancamentoDoMes;
 
   // Pausada, arquivada ou sem origem definida: não gera lançamento previsto.
   if (row.pausada || row.arquivada) return null;
@@ -72,7 +78,7 @@ async function garantirLancamentoDoMes(supabase: any, row: ContaFixaRow): Promis
   const userId = await getUsuarioAutenticadoId();
   if (!userId) return null;
 
-  const { data: novo } = await supabase
+  const { data: novo, error } = await supabase
     .from("casa_lancamentos")
     .insert({
       user_id: userId,
@@ -90,7 +96,21 @@ async function garantirLancamentoDoMes(supabase: any, row: ContaFixaRow): Promis
     .select("id, data, valor, previsto, pulado")
     .single();
 
-  return (novo as LancamentoDoMes) ?? null;
+  if (error || !novo) {
+    // Provável colisão com a trava única do banco (duas requisições tentando
+    // criar ao mesmo tempo) — busca de novo em vez de arriscar duplicar.
+    const { data: existenteAgora } = await supabase
+      .from("casa_lancamentos")
+      .select("id, data, valor, previsto, pulado")
+      .eq("conta_fixa_id", row.id)
+      .gte("data", inicio)
+      .lte("data", fim)
+      .order("created_at", { ascending: true })
+      .limit(1);
+    return existenteAgora && existenteAgora.length > 0 ? (existenteAgora[0] as LancamentoDoMes) : null;
+  }
+
+  return novo as LancamentoDoMes;
 }
 
 function determinarStatus(row: ContaFixaRow, lancamento: LancamentoDoMes | null): StatusContaFixa {
