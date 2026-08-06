@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient, getUsuarioAutenticadoId } from "@/lib/supabase/server";
+import { getOuCriarFatura } from "@/lib/data/cartoes-actions";
 
 interface Resultado {
   error: string | null;
@@ -151,6 +152,14 @@ export async function createLancamento(input: LancamentoInput): Promise<Resultad
       ? { origem_cartao_id: input.origemId, origem_conta_id: null }
       : { origem_conta_id: input.origemId, origem_cartao_id: null };
 
+  // Se a pessoa escolheu manualmente uma fatura (só existe pra cartão),
+  // resolve pro ID real em casa_faturas — é essa escolha que manda,
+  // sobrepondo o cálculo automático por dia de fechamento.
+  let faturaIdReal: string | null = null;
+  if (input.origemTipo === "cartao" && input.faturaId) {
+    faturaIdReal = await getOuCriarFatura(input.origemId!, input.faturaId, userId);
+  }
+
   if (!input.parcelado) {
     const { error } = await supabase.from("casa_lancamentos").insert({
       user_id: userId,
@@ -161,6 +170,7 @@ export async function createLancamento(input: LancamentoInput): Promise<Resultad
       categoria_id: categoriaId,
       data: dataLancamento,
       previsto: !!input.previsto,
+      fatura_id: faturaIdReal,
       ...camposOrigem,
     });
     if (error) return { error: error.message };
@@ -206,6 +216,7 @@ export async function createLancamento(input: LancamentoInput): Promise<Resultad
       parcela_atual: i + 1,
       parcela_total: totalParcelas,
       compra_parcelada_id: compraParceladaId,
+      fatura_id: i === 0 ? faturaIdReal : null,
       ...camposOrigem,
     };
   });

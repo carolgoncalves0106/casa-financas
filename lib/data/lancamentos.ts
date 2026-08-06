@@ -57,6 +57,7 @@ export async function getLancamentos(): Promise<Lancamento[]> {
       (row.tipo === "movimentacao" ? "Movimentação financeira" : ""),
     origem: primeiroRelacionado(row.casa_contas)?.nome ?? primeiroRelacionado(row.casa_cartoes)?.nome ?? "",
     data: formatarQuando(row.data),
+    dataISO: row.data,
     quando: formatarQuando(row.data),
     valor: Number(row.valor),
     tipo: row.tipo,
@@ -82,13 +83,13 @@ export async function getLancamentosPorCartao(cartaoId: string, nomeCartao: stri
 
   const { data, error } = await supabase
     .from("casa_lancamentos")
-    .select("id, tipo, valor, descricao, emoji, data, previsto, parcela_atual, parcela_total, casa_categorias(nome)")
+    .select("id, tipo, valor, descricao, emoji, data, previsto, parcela_atual, parcela_total, fatura_id, casa_categorias(nome)")
     .eq("origem_cartao_id", cartaoId)
     .order("data", { ascending: false });
 
   if (error || !data) return [];
 
-  return (data as unknown as LancamentoRow[]).map((row) => ({
+  return (data as unknown as (LancamentoRow & { fatura_id: string | null })[]).map((row) => ({
     id: row.id,
     emoji: row.emoji,
     descricao: row.descricao,
@@ -97,10 +98,12 @@ export async function getLancamentosPorCartao(cartaoId: string, nomeCartao: stri
       (row.tipo === "movimentacao" ? "Movimentação financeira" : ""),
     origem: nomeCartao,
     data: formatarQuando(row.data),
+    dataISO: row.data,
     quando: formatarQuando(row.data),
     valor: Number(row.valor),
     tipo: row.tipo,
     previsto: row.previsto,
+    faturaId: row.fatura_id,
     parcela:
       row.parcela_atual && row.parcela_total
         ? { atual: row.parcela_atual, total: row.parcela_total }
@@ -133,6 +136,7 @@ export async function getLancamentosPorConta(contaId: string, nomeConta: string)
       (row.tipo === "movimentacao" ? "Movimentação financeira" : ""),
     origem: nomeConta,
     data: formatarQuando(row.data),
+    dataISO: row.data,
     quando: formatarQuando(row.data),
     valor: Number(row.valor),
     tipo: row.tipo,

@@ -6,7 +6,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
 import TransactionCard from "@/components/ui/TransactionCard";
 import SubscriptionsSection from "@/components/cartoes/SubscriptionsSection";
-import { getCartao } from "@/lib/data/cartoes";
+import { getCartao, competenciaDaData } from "@/lib/data/cartoes";
 import { getLancamentosPorCartao } from "@/lib/data/lancamentos";
 import { getAssinaturasPorCartao } from "@/lib/data/contas-fixas";
 import { getCategorias } from "@/lib/data/categorias";
@@ -27,7 +27,16 @@ export default async function CartaoDetalhePage({ params }: { params: { id: stri
     getAssinaturasPorCartao(cartao.id),
     getCategorias("despesa"),
   ]);
-  const comprasFatura = lancamentosCartao.filter((l) => !l.previsto);
+  const competenciaAtual = cartao.faturas[0]?.id ?? "";
+  // dataISO sempre vem preenchido aqui — lancamentosCartao vem de getLancamentosPorCartao(),
+  // que busca do Supabase e sempre define esse campo (o "?" no tipo é só pro mock legado).
+  // Prioridade: se a compra tem faturaId (fatura escolhida manualmente ao lançar), usa
+  // esse vínculo direto; só cai no cálculo por dia de fechamento quando não tem.
+  const comprasFatura = lancamentosCartao.filter((l) => {
+    if (l.previsto) return false;
+    if (l.faturaId) return l.faturaId === cartao.faturaAtualId;
+    return competenciaDaData(l.dataISO!, cartao.fechamento ?? null) === competenciaAtual;
+  });
   const parceladas = comprasFatura.filter((l) => l.parcela);
   const proximasParcelas = lancamentosCartao.filter((l) => l.parcela && l.previsto);
   const totalProximaFatura = lancamentosCartao
@@ -103,7 +112,7 @@ export default async function CartaoDetalhePage({ params }: { params: { id: stri
       </section>
 
       <section className="mt-3 sm:mt-4 lg:mt-5">
-        <SectionCard title="Compras da fatura">
+        <SectionCard title="Compras da fatura" subtitle={cartao.faturas[0]?.label}>
           {comprasFatura.length === 0 ? (
             <p className="text-sm text-ink-faint py-4">Nenhuma compra registrada nesta fatura ainda.</p>
           ) : (

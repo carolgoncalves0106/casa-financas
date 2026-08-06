@@ -27,6 +27,8 @@ export interface Lancamento {
   categoria: string;
   origem: string;
   data: string;
+  /** Data crua (aaaa-mm-dd), sem formatação — usada para calcular o ciclo de fatura do cartão. Sempre presente em dados reais (vindos do Supabase); opcional só pra não quebrar o mock legado ainda usado por Configurações. */
+  dataISO?: string;
   /** Rótulo relativo opcional, ex: "Hoje", "Ontem" — usado no lugar da data quando disponível */
   quando?: string;
   valor: number;
@@ -35,6 +37,8 @@ export interface Lancamento {
   previsto?: boolean;
   /** Presente quando o lançamento é uma parcela de uma compra parcelada */
   parcela?: { atual: number; total: number };
+  /** ID da fatura vinculada manualmente (só cartão) — quando ausente, a fatura é calculada pelo dia de fechamento */
+  faturaId?: string | null;
 }
 
 // ---- Contas bancárias ----
@@ -103,6 +107,8 @@ export interface CartaoCredito {
   fechamento?: number; // dia do mês, opcional
   vencimento?: number; // dia do mês, opcional
   faturaAtual: number;
+  /** ID real da linha em casa_faturas da fatura atual, se já existir (usado pra filtrar compras vinculadas manualmente) */
+  faturaAtualId?: string;
   statusFatura: StatusFatura;
   faturas: Fatura[];
   arquivado?: boolean;

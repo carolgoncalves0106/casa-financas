@@ -8,6 +8,35 @@ interface Resultado {
   error: string | null;
 }
 
+/**
+ * Resolve uma competência (ex: "2026-08-01") pro ID real de uma linha em
+ * casa_faturas, criando a linha se ainda não existir. É isso que faz a
+ * escolha manual de "Fatura" no formulário de lançamento virar um vínculo
+ * de verdade (fatura_id), em vez de só um texto solto que não ia pra
+ * lugar nenhum.
+ */
+export async function getOuCriarFatura(cartaoId: string, competencia: string, userId: string): Promise<string | null> {
+  const supabase = createClient();
+
+  const { data: existente } = await supabase
+    .from("casa_faturas")
+    .select("id")
+    .eq("cartao_id", cartaoId)
+    .eq("competencia", competencia)
+    .maybeSingle();
+
+  if (existente) return (existente as { id: string }).id;
+
+  const { data: nova, error } = await supabase
+    .from("casa_faturas")
+    .insert({ user_id: userId, cartao_id: cartaoId, competencia, status: "aberta" })
+    .select("id")
+    .single();
+
+  if (error || !nova) return null;
+  return (nova as { id: string }).id;
+}
+
 export interface CartaoInput {
   nome: string;
   titular: string;
